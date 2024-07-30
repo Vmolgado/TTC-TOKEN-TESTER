@@ -5,51 +5,99 @@
     <title>TTC TOKEN TESTER</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            margin: 0;
+        }
+        .fixed-container {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background-color: #f9f9f9;
+            z-index: 1000;
+            border-bottom: 1px solid #c6c6c6;
         }
         header {
             display: flex;
+            justify-content: space-between; /* Asegura que los elementos en el header estén espaciados */
             align-items: center;
             padding: 10px;
             background-color: #f9f9f9;
-            border-bottom: 1px solid #c6c6c6;
         }
         header img {
             height: 50px;
             margin-right: 20px;
         }
         header h1 {
-            font-size: 24px;
+            font-size: 38px;
             margin: 0;
         }
-        #log { 
-            border: 1px solid #c6c6c6; 
-            padding: 10px;
-            background-color: #f9f9f9;
+        .date-container {
             font-size: 14px;
-            margin-top: 20px;
-            flex: 1;
+            color: #555;
         }
-        .form-container {
+        .form-container, .search-container {
             display: flex;
             align-items: center;
-            margin: 20px 0;
+            padding: 10px;
+            border-top: 1px solid #c6c6c6;
         }
-        #token {
-            width: 652px;  /* Ancho aumentado */
+        .form-container label, .search-container label {
+            width: 100px;  /* Ancho ajustado para las etiquetas */
+            text-align: right;  /* Alineación a la derecha */
+            margin-right: 10px;  /* Espacio entre la etiqueta y el input */
+        }
+        #token, #search {
+            width: 670px;  /* Ancho aumentado */
             padding: 4px;  /* Relleno más pequeño */
             font-size: 16px;
             height: 20px;  /* Altura más pequeña */
             margin-right: 10px;
         }
-        #login_btn {
+        #login_btn, #clear_btn, #export_excel_btn, #export_pdf_btn {
             padding: 5px 10px;  /* Relleno ajustado */
             font-size: 16px;
+            border: none;
+            cursor: pointer;
+            color: white;
+        }
+        #login_btn {
+            background-color: #007bff;  /* Color azul */
+        }
+        #login_btn:hover {
+            background-color: #0069d9;  /* Color azul más oscuro al pasar el mouse */
+        }
+        #clear_btn {
+            background-color: #ffc107;  /* Color amarillo */
+            color: white;  /* Texto en blanco */
+        }
+        #clear_btn:hover {
+            background-color: #e0a800;  /* Color amarillo más oscuro al pasar el mouse */
+        }
+        #export_excel_btn {
+            background-color: #28a745;  /* Color verde */
+            color: white;
+        }
+        #export_excel_btn:hover {
+            background-color: #218838;  /* Color verde más oscuro al pasar el mouse */
+        }
+        #export_pdf_btn {
+            background-color: #dc3545;  /* Color rojo */
+            color: white;
+        }
+        #export_pdf_btn:hover {
+            background-color: #c82333;  /* Color rojo más oscuro al pasar el mouse */
+        }
+        .content {
+            margin-top: 200px; /* Espacio para la cabecera fija y el formulario */
+            padding: 20px;
+            flex: 1;
         }
         footer {
             display: flex;
@@ -68,20 +116,55 @@
             font-weight: bold;
             font-style: italic;
         }
+        #export-buttons {
+            display: none;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #c6c6c6;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
 
-<header>
-    <img src="LOGO TTC.png" alt="Logo" />
-    <h1>Web Service API Wialon Tester</h1>
-</header>
-
-<div class="form-container">
-    Token: <input type="text" id="token" value=""/>
-    <input type="button" value="Validar Token" id="login_btn" />
+<div class="fixed-container">
+    <header>
+        <div>
+            <img src="LOGO TTC.png" alt="Logo" />
+            <h1>TTC TOKEN TESTER</h1>
+        </div>
+        <div class="date-container" id="current-date"></div>
+    </header>
+    <div class="form-container">
+        <label for="token">Token:</label>
+        <input type="text" id="token" placeholder="Ingresa tu Token..." value=""/>
+        <input type="button" value="Validar Token" id="login_btn" />
+        <input type="button" value="Limpiar Todo" id="clear_btn" />
+    </div>
+    <div class="search-container">
+        <label for="search">Buscar Unidad:</label>
+        <input type="text" id="search" placeholder="Ingresa cualquier dato de la unidad..." oninput="searchUnits()">
+    </div>
 </div>
-<div id="log"></div>
+
+<div class="content">
+    <div id="log"></div>
+    <div id="export-buttons">
+        <input type="button" value="Exportar a Excel" id="export_excel_btn" onclick="exportToExcel()"/>
+        <input type="button" value="Exportar a PDF" id="export_pdf_btn" onclick="exportToPDF()"/>
+    </div>
+</div>
 
 <footer>
     <img src="footer_logo.png" alt="Footer Logo" />
@@ -92,7 +175,7 @@
     // Print message to log
     function msg(text) { 
         console.log(text);  // Log to console for debugging
-        $("#log").prepend(text + "<br/>"); 
+        $("#log").append("<tr><td>" + text + "</td></tr>"); 
     }
 
     function loginAndGetUnits() {
@@ -157,14 +240,80 @@
                         for (var i = 0; i < units.length; i++) {
                             msg("Unidad: " + units[i].nm);
                         }
+
+                        // Mostrar botones de exportación
+                        document.getElementById("export-buttons").style.display = "block";
                     }
                 });
             }
         });
     }
 
+    function searchUnits() {
+        var input = document.getElementById("search").value.toLowerCase();
+        var log = document.getElementById("log");
+        var entries = log.getElementsByTagName("tr");
+        for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i];
+            if (entry.textContent.toLowerCase().includes(input)) {
+                entry.style.display = "";
+            } else {
+                entry.style.display = "none";
+            }
+        }
+    }
+
+    function clearToken() {
+        document.getElementById("token").value = "";
+        document.getElementById("log").innerHTML = "<tr><th>Resultados</th></tr>";
+        document.getElementById("export-buttons").style.display = "none";
+    }
+
+    function exportToExcel() {
+        var log = document.getElementById("log");
+        var rows = log.getElementsByTagName("tr");
+        var data = [];
+        for (var i = 0; i < rows.length; i++) {
+            var cells = rows[i].getElementsByTagName("td");
+            var rowData = [];
+            for (var j = 0; j < cells.length; j++) {
+                rowData.push(cells[j].textContent);
+            }
+            data.push(rowData);
+        }
+        var ws = XLSX.utils.aoa_to_sheet(data);
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Unidades");
+        XLSX.writeFile(wb, "unidades.xlsx");
+    }
+
+    function exportToPDF() {
+        var log = document.getElementById("log");
+        var rows = log.getElementsByTagName("tr");
+        var doc = new jsPDF();
+        for (var i = 0; i < rows.length; i++) {
+            var cells = rows[i].getElementsByTagName("td");
+            var rowText = '';
+            for (var j = 0; j < cells.length; j++) {
+                rowText += cells[j].textContent + ' ';
+            }
+            doc.text(rowText, 10, 10 + (10 * i));
+        }
+        doc.save("unidades.pdf");
+    }
+
+    function updateDate() {
+        var now = new Date();
+        var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        var formattedDate = now.toLocaleDateString('es-ES', options);
+        document.getElementById("current-date").textContent = formattedDate;
+    }
+
     $(document).ready(function () {
+        $("#log").html("<table><thead><tr><th>Resultados</th></tr></thead><tbody></tbody></table>");
         $("#login_btn").click(loginAndGetUnits);
+        $("#clear_btn").click(clearToken);
+        updateDate();  // Llama a la función para actualizar la fecha
     });
 </script>
 
