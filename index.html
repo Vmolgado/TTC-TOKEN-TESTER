@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>TTC TOKEN TESTER</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #c6c6c6;
+        }
+        header img {
+            height: 50px;
+            margin-right: 20px;
+        }
+        header h1 {
+            font-size: 24px;
+            margin: 0;
+        }
+        #log { 
+            border: 1px solid #c6c6c6; 
+            padding: 10px;
+            background-color: #f9f9f9;
+            font-size: 14px;
+            margin-top: 20px;
+            flex: 1;
+        }
+        .form-container {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+        }
+        #token {
+            width: 652px;  /* Ancho aumentado */
+            padding: 4px;  /* Relleno más pequeño */
+            font-size: 16px;
+            height: 20px;  /* Altura más pequeña */
+            margin-right: 10px;
+        }
+        #login_btn {
+            padding: 5px 10px;  /* Relleno ajustado */
+            font-size: 16px;
+        }
+        footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 5px;
+            background-color: #f9f9f9;
+            border-top: 1px solid #c6c6c6;
+            font-size: 12px;
+        }
+        footer img {
+            height: 20px;
+            margin-right: 10px;
+        }
+        .footer-text {
+            font-weight: bold;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <img src="LOGO TTC.png" alt="Logo" />
+    <h1>Web Service API Wialon Tester</h1>
+</header>
+
+<div class="form-container">
+    Token: <input type="text" id="token" value=""/>
+    <input type="button" value="Validar Token" id="login_btn" />
+</div>
+<div id="log"></div>
+
+<footer>
+    <img src="footer_logo.png" alt="Footer Logo" />
+    <span class="footer-text">AVL MOLGADO 2024</span>
+</footer>
+
+<script type="text/javascript">
+    // Print message to log
+    function msg(text) { 
+        console.log(text);  // Log to console for debugging
+        $("#log").prepend(text + "<br/>"); 
+    }
+
+    function loginAndGetUnits() {
+        var token = $("#token").val();
+        if (!token) {
+            msg("Please enter a token.");
+            return;
+        }
+
+        msg("Intentando iniciar sesión con token '" + token + "'");
+
+        // Perform login
+        $.ajax({
+            url: 'https://hst-api.wialon.com/wialon/ajax.html',
+            dataType: 'jsonp',
+            data: {
+                svc: 'token/login',
+                params: JSON.stringify({ token: token })
+            },
+            success: function (response) {
+                if (response.error) {
+                    msg("Intento de conexión fallida: " + response.error);
+                    return;
+                }
+
+                msg("Se ha iniciado sesión exitosamente.");
+                msg("Obteniendo Unidades...");
+
+                // Get units
+                $.ajax({
+                    url: 'https://hst-api.wialon.com/wialon/ajax.html',
+                    dataType: 'jsonp',
+                    data: {
+                        svc: 'core/search_items',
+                        params: JSON.stringify({
+                            spec: {
+                                itemsType: 'avl_unit',
+                                propName: 'sys_name',
+                                propValueMask: '*',
+                                sortType: 'sys_name'
+                            },
+                            force: 1,
+                            flags: 1,
+                            from: 0,
+                            to: 0
+                        }),
+                        sid: response.eid
+                    },
+                    success: function (response) {
+                        if (response.error) {
+                            msg("No se pudo obtener datos: " + response.error);
+                            return;
+                        }
+
+                        var units = response.items;
+                        if (!units || !units.length) {
+                            msg("No se encontraron unidades.");
+                            return;
+                        }
+
+                        msg("Se encontraron " + units.length + " Unidades.");
+                        for (var i = 0; i < units.length; i++) {
+                            msg("Unidad: " + units[i].nm);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    $(document).ready(function () {
+        $("#login_btn").click(loginAndGetUnits);
+    });
+</script>
+
+</body>
+</html>
