@@ -1,321 +1,371 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8" />
-    <title>TTC TOKEN TESTER</title>
-    <link rel="icon" type="image/png" href="favicon.png">
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            margin: 0;
-        }
-        .fixed-container {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            background-color: #f9f9f9;
-            z-index: 1000;
-            border-bottom: 1px solid #c6c6c6;
-        }
-        header {
-            display: flex;
-            justify-content: space-between; /* Asegura que los elementos en el header estén espaciados */
-            align-items: center;
-            padding: 10px;
-            background-color: #f9f9f9;
-        }
-        header img {
-            height: 50px;
-            margin-right: 20px;
-        }
-        header h1 {
-            font-size: 38px;
-            margin: 0;
-        }
-        .date-container {
-            font-size: 14px;
-            color: #555;
-        }
-        .form-container, .search-container {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            border-top: 1px solid #c6c6c6;
-        }
-        .form-container label, .search-container label {
-            width: 100px;  /* Ancho ajustado para las etiquetas */
-            text-align: right;  /* Alineación a la derecha */
-            margin-right: 10px;  /* Espacio entre la etiqueta y el input */
-        }
-        #token, #search {
-            width: 670px;  /* Ancho aumentado */
-            padding: 4px;  /* Relleno más pequeño */
-            font-size: 16px;
-            height: 20px;  /* Altura más pequeña */
-            margin-right: 10px;
-        }
-        #login_btn, #clear_btn, #export_excel_btn, #export_pdf_btn {
-            padding: 5px 10px;  /* Relleno ajustado */
-            font-size: 16px;
-            border: none;
-            cursor: pointer;
-            color: white;
-        }
-        #login_btn {
-            background-color: #007bff;  /* Color azul */
-        }
-        #login_btn:hover {
-            background-color: #0069d9;  /* Color azul más oscuro al pasar el mouse */
-        }
-        #clear_btn {
-            background-color: #ffc107;  /* Color amarillo */
-            color: white;  /* Texto en blanco */
-        }
-        #clear_btn:hover {
-            background-color: #e0a800;  /* Color amarillo más oscuro al pasar el mouse */
-        }
-        #export_excel_btn {
-            background-color: #28a745;  /* Color verde */
-            color: white;
-        }
-        #export_excel_btn:hover {
-            background-color: #218838;  /* Color verde más oscuro al pasar el mouse */
-        }
-        #export_pdf_btn {
-            background-color: #dc3545;  /* Color rojo */
-            color: white;
-        }
-        #export_pdf_btn:hover {
-            background-color: #c82333;  /* Color rojo más oscuro al pasar el mouse */
-        }
-        .content {
-            margin-top: 200px; /* Espacio para la cabecera fija y el formulario */
-            padding: 20px;
-            flex: 1;
-        }
-        footer {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 5px;
-            background-color: #f9f9f9;
-            border-top: 1px solid #c6c6c6;
-            font-size: 12px;
-        }
-        footer img {
-            height: 20px;
-            margin-right: 10px;
-        }
-        .footer-text {
-            font-weight: bold;
-            font-style: italic;
-        }
-        #export-buttons {
-            display: none;
-            margin-top: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        table, th, td {
-            border: 1px solid #c6c6c6;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <title>TTC TOKEN TESTER</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/png" href="favicon.png">
+
+  <!-- jQuery -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+  <!-- XLSX (Excel) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- jsPDF + autoTable (PDF) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- CSS embebido -->
+  <style>
+    :root{
+      --sticky-offset: 180px;
+      --brand-blue: #007bff; --brand-blue-hover: #0069d9;
+      --brand-yellow: #ffc107; --brand-yellow-hover: #e0a800;
+      --brand-green: #28a745; --brand-green-hover: #218838;
+      --brand-red: #dc3545; --brand-red-hover: #c82333;
+      --line: #c6c6c6; --bg: #f9f9f9; --muted: #555;
+    }
+    *{ box-sizing: border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0; font-family: Arial, sans-serif; background:#f4f6f8;
+      display:flex; flex-direction:column; min-height:100vh;
+      padding-top:var(--sticky-offset);
+    }
+    .fixed-container{
+      position:fixed; top:0; left:0; right:0; background:#fff; z-index:1000;
+      border-bottom:1px solid var(--line); box-shadow:0 2px 8px rgba(0,0,0,.06);
+    }
+    header{ display:flex; align-items:center; justify-content:space-between; padding:10px; }
+    header .brand{ display:flex; align-items:center; gap:14px; }
+    header img{ height:50px; }
+    header h1{ margin:0; font-size:28px; line-height:1.1; }
+
+    /* Badge + fecha debajo */
+    .status-block{ display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-width:140px; }
+    .date-container{ font-size:14px; color:var(--muted); }
+
+    .bars{ display:grid; grid-template-columns:1fr; gap:0; border-top:1px solid var(--line); }
+    .bar{ display:flex; align-items:center; gap:10px; padding:10px; border-top:1px solid var(--line); background:#fff; }
+    .bar label{ width:130px; text-align:right; margin-right:6px; font-weight:bold; }
+    .bar input[type="text"], .bar input[type="password"]{
+      flex:1; min-width:240px; height:38px; padding:8px 10px; font-size:16px;
+      border:1px solid var(--line); border-radius:6px; outline:none; background:#fff;
+    }
+    .bar input[type="text"]:focus, .bar input[type="password"]:focus{ border-color:var(--brand-blue); }
+    .btn{
+      display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 12px;
+      border:none; border-radius:6px; color:#fff; cursor:pointer; transition:background-color .15s;
+    }
+    .btn.blue{ background:var(--brand-blue); } .btn.blue:hover{ background:var(--brand-blue-hover); }
+    .btn.yellow{ background:var(--brand-yellow); color:#000; } .btn.yellow:hover{ background:var(--brand-yellow-hover); color:#000; }
+    .btn.green{ background:var(--brand-green); } .btn.green:hover{ background:var(--brand-green-hover); }
+    .btn.red{ background:var(--brand-red); } .btn.red:hover{ background:var(--brand-red-hover); }
+    .btn.ghost{ background:transparent; color:#333; border:1px solid var(--line); }
+    .status-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; border-top:1px solid var(--line); background:#fff; }
+    .badge{ display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:bold; }
+    .badge.ok{ background:#e6ffe6; color:#106410; border:1px solid #bde3bd; }
+    .badge.err{ background:#ffe6e9; color:#7d1c25; border:1px solid #f2b7bf; }
+    .status-msgs{ color:#333; font-size:13px; line-height:1.35; max-height:56px; overflow:auto; }
+    .content{ padding:16px; flex:1; width:100%; max-width:1400px; margin:0 auto; }
+    #results-container{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:12px; }
+    #log{ border:1px solid var(--line); padding:10px; background:#f9f9f9; font-size:14px; margin-top:20px; flex:1; }
+    table{ width:100%; border-collapse:collapse; background:#fff; border-radius:6px; overflow:hidden; border:1px solid var(--line); }
+    thead th{ position:sticky; top:0; background:#f2f2f2; border-bottom:1px solid var(--line); padding:10px; text-align:left; font-weight:bold; }
+    tbody td{ border-top:1px solid #eee; padding:10px; text-align:left; vertical-align:top; max-width:320px; overflow-wrap:anywhere; }
+    tbody tr:hover{ background:#fafafa; }
+    .export-row{ display:none; gap:10px; margin-top:12px; }
+    .loader{ display:none; margin-left:8px; width:18px; height:18px; border:2px solid #ddd; border-top-color:var(--brand-blue); border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin{ to{ transform:rotate(360deg);} }
+    footer{ display:flex; align-items:center; justify-content:center; gap:10px; padding:8px; background:#fff; border-top:1px solid var(--line); font-size:12px; }
+    footer img{ height:20px; } .footer-text{ font-weight:bold; font-style:italic; }
+    @media (max-width:900px){ header h1{ font-size:22px; } .bar{ flex-wrap:wrap; } .bar label{ width:100%; text-align:left; margin:0 0 6px 0; } .status-block{ align-items:flex-start; } }
+  </style>
 </head>
 <body>
 
-<div class="fixed-container">
+  <div class="fixed-container" id="fixedHeader">
     <header>
-        <div>
-            <img src="LOGO TTC.png" alt="Logo" />
-            <h1>TTC TOKEN TESTER</h1>
-        </div>
+      <div class="brand">
+        <img src="LOGO TTC.png" alt="Logo" onerror="this.style.display='none'">
+        <h1>TTC TOKEN TESTER</h1>
+      </div>
+      <div class="status-block">
+        <span id="conn-badge" class="badge err">Desconectado</span>
         <div class="date-container" id="current-date"></div>
+      </div>
     </header>
-    <div class="form-container">
+
+    <div class="bars">
+      <div class="bar">
         <label for="token">Token:</label>
-        <input type="text" id="token" placeholder="Ingresa tu Token..." value=""/>
-        <input type="button" value="Validar Token" id="login_btn" />
-        <input type="button" value="Limpiar Todo" id="clear_btn" />
-    </div>
-    <div class="search-container">
-        <label for="search">Buscar Unidad:</label>
-        <input type="text" id="search" placeholder="Ingresa cualquier dato de la unidad..." oninput="searchUnits()">
-    </div>
-</div>
+        <input type="password" id="token" placeholder="Pega tu token de Wialon" autocomplete="off" />
+        <button class="btn ghost" id="toggle_token_visibility">Mostrar</button>
+        <button class="btn blue" id="login_btn">Validar Token</button>
+        <div class="loader" id="loader_login"></div>
+        <button class="btn yellow" id="clear_btn">Limpiar Todo</button>
+      </div>
 
-<div class="content">
-    <div id="log"></div>
-    <div id="export-buttons">
-        <input type="button" value="Exportar a Excel" id="export_excel_btn" onclick="exportToExcel()"/>
-        <input type="button" value="Exportar a PDF" id="export_pdf_btn" onclick="exportToPDF()"/>
-    </div>
-</div>
+      <div class="bar">
+        <label for="search">Buscar:</label>
+        <input type="text" id="search" placeholder="Filtra por UNIDAD o IMEI..." />
+        <button class="btn ghost" id="clear_search">X</button>
+      </div>
 
-<footer>
-    <img src="footer_logo.png" alt="Footer Logo" />
+      <div class="status-row">
+        <div class="status-msgs" id="status-msgs">Listo.</div>
+        <div><span id="found-count" class="badge">0 unidades</span></div>
+      </div>
+    </div>
+  </div>
+
+  <main class="content">
+    <div id="results-container">
+      <div id="log">
+        <table id="results-table" aria-label="Unidades">
+          <thead><tr id="results-head"></tr></thead>
+          <tbody id="results-body"><tr><td>No hay datos para mostrar.</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="export-row" id="export-buttons">
+        <button class="btn green" id="export_excel_btn">Exportar a Excel</button>
+        <button class="btn red" id="export_pdf_btn">Exportar a PDF</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <img src="footer_logo.png" alt="Footer Logo" onerror="this.style.display='none'">
     <span class="footer-text">AVL MOLGADO 2024</span>
-</footer>
+  </footer>
 
-<script type="text/javascript">
-    // Print message to log
-    function msg(text) { 
-        console.log(text);  // Log to console for debugging
-        $("#log").append("<tr><td>" + text + "</td></tr>"); 
+  <script>
+    /* ===================== Variables ===================== */
+    const WIALON_URL = 'https://hst-api.wialon.com/wialon/ajax.html';
+    let gSid = null, gUnits = [], gFiltered = [];
+    const FIXED_COLUMNS = ['nm','imei']; // SOLO UNIDAD (nm) e IMEI
+    const COLUMN_TITLES  = { nm:'UNIDAD', imei:'IMEI' };
+
+    /* ===================== UI helpers ===================== */
+    function updateDate(){
+      const now = new Date();
+      const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+      document.getElementById('current-date').textContent = now.toLocaleDateString('es-MX', opts);
+    }
+    function setBadge(ok){ const b = document.getElementById('conn-badge'); b.className = ok ? 'badge ok' : 'badge err'; b.textContent = ok ? 'Conectado' : 'Desconectado'; }
+    function setStatus(text){ const el = document.getElementById('status-msgs'); const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 5; el.textContent = text; if(atBottom) el.scrollTop = el.scrollHeight; queueMeasureOffset(); }
+    function resetStatus(text='Listo.'){ setStatus(text); }
+    function showLoader(show){ document.getElementById('loader_login').style.display = show ? 'inline-block' : 'none'; }
+    function updateCount(n){ document.getElementById('found-count').textContent = `${n} ${n===1?'unidad':'unidades'}`; }
+    function clearAll(){ $('#token').val(''); $('#search').val(''); gSid=null; gUnits=[]; gFiltered=[]; renderTable([]); $('#export-buttons').hide(); setBadge(false); resetStatus('Listo.'); updateCount(0); queueMeasureOffset(); }
+
+    /* ======= Espaciado dinámico ======= */
+    let measureQueued = false;
+    function measureOffset(){ const fixed = document.getElementById('fixedHeader'); const h = fixed ? fixed.getBoundingClientRect().height : 0; document.documentElement.style.setProperty('--sticky-offset', `${Math.ceil(h)+8}px`); }
+    function queueMeasureOffset(){ if (measureQueued) return; measureQueued = true; requestAnimationFrame(()=>{ measureQueued=false; measureOffset(); }); }
+    window.addEventListener('resize', queueMeasureOffset);
+
+    /* ===================== IMEI helper ===================== */
+    function extractImeiFromText(v){
+      if(v==null) return null;
+      const s = String(v);
+      const m = s.match(/\b\d{14,16}\b/); // IMEI típico 15 dígitos
+      return m ? m[0] : null;
+    }
+    function deriveImei(u){
+      // 1) uid directo si parece IMEI
+      let imei = extractImeiFromText(u.uid);
+      if(imei) return imei;
+
+      // 2) params (prms)
+      if(u.prms){
+        for(const k of Object.keys(u.prms)){
+          if(/imei/i.test(k)){
+            imei = extractImeiFromText(u.prms[k]);
+            if(imei) return imei;
+          }
+        }
+      }
+      // 3) campos personalizados (flds)
+      if(u.flds){
+        const list = Array.isArray(u.flds) ? u.flds : Object.values(u.flds);
+        for(const f of list){
+          const name = (f?.n || f?.name || '');
+          const val  = (f?.v || f?.value || '');
+          if(/imei/i.test(name)){
+            imei = extractImeiFromText(val);
+            if(imei) return imei;
+          }
+        }
+      }
+      // 4) sensores (sens)
+      if(u.sens){
+        const arr = Array.isArray(u.sens) ? u.sens : Object.values(u.sens);
+        for(const s of arr){
+          if(/imei/i.test(s?.n || s?.name || '') || /imei/i.test(s?.t || s?.type || '')){
+            imei = extractImeiFromText(s?.p || s?.v || s?.value || '');
+            if(imei) return imei;
+          }
+        }
+      }
+      return '';
     }
 
-    function loginAndGetUnits() {
-        var token = $("#token").val();
-        if (!token) {
-            msg("Please enter a token.");
-            return;
-        }
+    /* ===================== Tabla (solo 2 columnas) ===================== */
+    function renderTable(items){
+      const thead = document.getElementById('results-head');
+      const tbody = document.getElementById('results-body');
+      thead.innerHTML=''; tbody.innerHTML='';
 
-        msg("Intentando iniciar sesión con token '" + token + "'");
+      if(!items || !items.length){
+        thead.innerHTML = `<th>Resultados</th>`;
+        tbody.innerHTML = `<tr><td>No hay datos para mostrar.</td></tr>`;
+        updateCount(0); return;
+      }
 
-        // Perform login
-        $.ajax({
-            url: 'https://hst-api.wialon.com/wialon/ajax.html',
-            dataType: 'jsonp',
-            data: {
-                svc: 'token/login',
-                params: JSON.stringify({ token: token })
-            },
-            success: function (response) {
-                if (response.error) {
-                    msg("Intento de conexión fallida: " + response.error);
-                    return;
-                }
+      // Encabezados fijos: UNIDAD | IMEI
+      FIXED_COLUMNS.forEach(c=>{
+        const th = document.createElement('th');
+        th.textContent = (COLUMN_TITLES[c] || c.toUpperCase());
+        thead.appendChild(th);
+      });
 
-                msg("Se ha iniciado sesión exitosamente.");
-                msg("Obteniendo Unidades...");
+      const frag = document.createDocumentFragment();
+      items.forEach(u=>{
+        const tr = document.createElement('tr');
+        // Asignamos imei calculado para mostrar
+        const imei = deriveImei(u);
+        const name = u.nm ?? '';
 
-                // Get units
-                $.ajax({
-                    url: 'https://hst-api.wialon.com/wialon/ajax.html',
-                    dataType: 'jsonp',
-                    data: {
-                        svc: 'core/search_items',
-                        params: JSON.stringify({
-                            spec: {
-                                itemsType: 'avl_unit',
-                                propName: 'sys_name',
-                                propValueMask: '*',
-                                sortType: 'sys_name'
-                            },
-                            force: 1,
-                            flags: 1,
-                            from: 0,
-                            to: 0
-                        }),
-                        sid: response.eid
-                    },
-                    success: function (response) {
-                        if (response.error) {
-                            msg("No se pudo obtener datos: " + response.error);
-                            return;
-                        }
+        // Celda UNIDAD
+        const tdNm = document.createElement('td'); tdNm.textContent = String(name); tr.appendChild(tdNm);
+        // Celda IMEI
+        const tdI = document.createElement('td'); tdI.textContent = String(imei); tr.appendChild(tdI);
 
-                        var units = response.items;
-                        if (!units || !units.length) {
-                            msg("No se encontraron unidades.");
-                            return;
-                        }
+        frag.appendChild(tr);
+      });
+      tbody.appendChild(frag);
+      updateCount(items.length);
+      $('#export-buttons').css('display','flex');
+    }
 
-                        msg("Se encontraron " + units.length + " Unidades.");
-                        for (var i = 0; i < units.length; i++) {
-                            msg("Unidad: " + units[i].nm);
-                        }
-
-                        // Mostrar botones de exportación
-                        document.getElementById("export-buttons").style.display = "block";
-                    }
-                });
-            }
+    /* ===================== Búsqueda (por UNIDAD/IMEI) ===================== */
+    function applySearch(){
+      const q = $('#search').val().toLowerCase().trim();
+      if(!q){
+        gFiltered = gUnits.slice();
+      }else{
+        gFiltered = gUnits.filter(u=>{
+          const imei = deriveImei(u).toLowerCase();
+          const name = String(u.nm ?? '').toLowerCase();
+          return name.includes(q) || imei.includes(q);
         });
+      }
+      renderTable(gFiltered);
+      queueMeasureOffset();
     }
 
-    function searchUnits() {
-        var input = document.getElementById("search").value.toLowerCase();
-        var log = document.getElementById("log");
-        var entries = log.getElementsByTagName("tr");
-        for (var i = 0; i < entries.length; i++) {
-            var entry = entries[i];
-            if (entry.textContent.toLowerCase().includes(input)) {
-                entry.style.display = "";
-            } else {
-                entry.style.display = "none";
-            }
+    /* ===================== Exportaciones ===================== */
+    function exportToExcel(){
+      const rows = gFiltered.length ? gFiltered : gUnits;
+      if(!rows.length){ alert('No hay datos para exportar.'); return; }
+      const data=[ ['UNIDAD','IMEI'] ];
+      rows.forEach(u=> data.push([ String(u.nm ?? ''), String(deriveImei(u)) ]));
+      const ws=XLSX.utils.aoa_to_sheet(data);
+      const wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Unidades");
+      XLSX.writeFile(wb, "unidades.xlsx");
+    }
+    function exportToPDF(){
+      const rows = gFiltered.length ? gFiltered : gUnits;
+      if(!rows.length){ alert('No hay datos para exportar.'); return; }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'A4' });
+      doc.setFontSize(12); doc.text("TTC TOKEN TESTER - Unidades", 40, 34);
+      const head=[ ['UNIDAD','IMEI'] ];
+      const body=rows.map(u=> [ String(u.nm ?? ''), String(deriveImei(u)) ]);
+      doc.autoTable({ startY:50, head, body, styles:{ fontSize:10, cellPadding:4 }, headStyles:{ fillColor:[242,242,242], textColor:20 } });
+      doc.save("unidades.pdf");
+    }
+
+    /* ===================== Wialon ===================== */
+    function loginAndGetUnits(){
+      const token = $('#token').val().trim();
+      if(!token){ resetStatus('Debes ingresar un token.'); setBadge(false); return; }
+      resetStatus('Iniciando sesión con el token...'); showLoader(true);
+
+      $.ajax({
+        url: WIALON_URL, dataType:'jsonp',
+        data:{ svc:'token/login', params: JSON.stringify({ token }) },
+        timeout: 20000,
+        success: function(res){
+          if(res && res.eid){ gSid = res.eid; setBadge(true); setStatus('Sesión iniciada. Obteniendo unidades...'); fetchUnits(); }
+          else { setBadge(false); setStatus(`Intento de conexión fallida. Respuesta: ${JSON.stringify(res)}`); showLoader(false); }
+          queueMeasureOffset();
+        },
+        error: function(xhr, status, err){ setBadge(false); setStatus(`Error de red en login: ${status||''} ${err||''}`); showLoader(false); queueMeasureOffset(); }
+      });
+    }
+
+    // Flags extendidas para traer flds/prms/sens además del uid
+    const EXT_FLAGS =
+        0x0001 | 0x0002 | 0x0004 | 0x0008 |
+        0x0010 | 0x0020 | 0x0040 | 0x0080 |
+        0x0100 | 0x0200 | 0x0400 | 0x0800 |
+        0x1000 | 0x2000 | 0x4000 | 0x8000; // 65535
+
+    function fetchUnits(){
+      if(!gSid){ setStatus('No hay sesión activa.'); return; }
+      const flags = EXT_FLAGS;
+
+      $.ajax({
+        url: WIALON_URL, dataType:'jsonp',
+        data:{
+          svc:'core/search_items',
+          params: JSON.stringify({
+            spec:{ itemsType:'avl_unit', propName:'sys_name', propValueMask:'*', sortType:'sys_name' },
+            force:1, flags, from:0, to:0
+          }),
+          sid: gSid
+        },
+        timeout: 30000,
+        success: function(res){
+          showLoader(false);
+          if(res && !res.error && Array.isArray(res.items)){
+            gUnits = res.items.slice();     // mantenemos objeto original
+            gFiltered = gUnits.slice();
+            setStatus(`Se encontraron ${gUnits.length} unidades.`);
+            renderTable(gFiltered);          // renderiza SOLO UNIDAD/IMEI
+          } else {
+            const err = res && res.error ? res.error : 'Respuesta inválida';
+            setStatus('No se pudo obtener datos: ' + err);
+            renderTable([]);
+          }
+          queueMeasureOffset();
+        },
+        error: function(xhr, status, err){
+          showLoader(false);
+          setStatus(`Error al obtener unidades: ${status||''} ${err||''}`);
+          renderTable([]);
+          queueMeasureOffset();
         }
+      });
     }
 
-    function clearToken() {
-        document.getElementById("token").value = "";
-        document.getElementById("log").innerHTML = "<tr><th>Resultados</th></tr>";
-        document.getElementById("export-buttons").style.display = "none";
-    }
-
-    function exportToExcel() {
-        var log = document.getElementById("log");
-        var rows = log.getElementsByTagName("tr");
-        var data = [];
-        for (var i = 0; i < rows.length; i++) {
-            var cells = rows[i].getElementsByTagName("td");
-            var rowData = [];
-            for (var j = 0; j < cells.length; j++) {
-                rowData.push(cells[j].textContent);
-            }
-            data.push(rowData);
-        }
-        var ws = XLSX.utils.aoa_to_sheet(data);
-        var wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Unidades");
-        XLSX.writeFile(wb, "unidades.xlsx");
-    }
-
-    function exportToPDF() {
-        var log = document.getElementById("log");
-        var rows = log.getElementsByTagName("tr");
-        var doc = new jsPDF();
-        for (var i = 0; i < rows.length; i++) {
-            var cells = rows[i].getElementsByTagName("td");
-            var rowText = '';
-            for (var j = 0; j < cells.length; j++) {
-                rowText += cells[j].textContent + ' ';
-            }
-            doc.text(rowText, 10, 10 + (10 * i));
-        }
-        doc.save("unidades.pdf");
-    }
-
-    function updateDate() {
-        var now = new Date();
-        var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        var formattedDate = now.toLocaleDateString('es-ES', options);
-        document.getElementById("current-date").textContent = formattedDate;
-    }
-
-    $(document).ready(function () {
-        $("#log").html("<table><thead><tr><th>Resultados</th></tr></thead><tbody></tbody></table>");
-        $("#login_btn").click(loginAndGetUnits);
-        $("#clear_btn").click(clearToken);
-        updateDate();  // Llama a la función para actualizar la fecha
+    /* ===================== Eventos ===================== */
+    $(function(){
+      updateDate(); renderTable([]); queueMeasureOffset();
+      $('#login_btn').on('click', loginAndGetUnits);
+      $('#clear_btn').on('click', clearAll);
+      $('#export_excel_btn').on('click', exportToExcel);
+      $('#export_pdf_btn').on('click', exportToPDF);
+      $('#toggle_token_visibility').on('click', function(){ const el = document.getElementById('token'); const isPwd = el.type === 'password'; el.type = isPwd ? 'text' : 'password'; this.textContent = isPwd ? 'Ocultar' : 'Mostrar'; queueMeasureOffset(); });
+      let t=null; $('#search').on('input focus blur', function(){ clearTimeout(t); t=setTimeout(applySearch, 100); queueMeasureOffset(); });
+      $('#clear_search').on('click', function(){ $('#search').val(''); applySearch(); queueMeasureOffset(); });
+      $('#token').on('keydown', function(e){ if(e.key === 'Enter'){ loginAndGetUnits(); } });
     });
-</script>
-
+  </script>
 </body>
 </html>
