@@ -42,7 +42,6 @@
     header img{ height:50px; }
     header h1{ margin:0; font-size:28px; line-height:1.1; }
 
-    /* Badge + fecha debajo */
     .status-block{ display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-width:140px; }
     .date-container{ font-size:14px; color:var(--muted); }
 
@@ -68,19 +67,30 @@
     .badge.ok{ background:#e6ffe6; color:#106410; border:1px solid #bde3bd; }
     .badge.err{ background:#ffe6e9; color:#7d1c25; border:1px solid #f2b7bf; }
     .status-msgs{ color:#333; font-size:13px; line-height:1.35; max-height:56px; overflow:auto; }
+
     .content{ padding:16px; flex:1; width:100%; max-width:1400px; margin:0 auto; }
     #results-container{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:12px; }
     #log{ border:1px solid var(--line); padding:10px; background:#f9f9f9; font-size:14px; margin-top:20px; flex:1; }
+
     table{ width:100%; border-collapse:collapse; background:#fff; border-radius:6px; overflow:hidden; border:1px solid var(--line); }
     thead th{ position:sticky; top:0; background:#f2f2f2; border-bottom:1px solid var(--line); padding:10px; text-align:left; font-weight:bold; }
     tbody td{ border-top:1px solid #eee; padding:10px; text-align:left; vertical-align:top; max-width:320px; overflow-wrap:anywhere; }
     tbody tr:hover{ background:#fafafa; }
+
     .export-row{ display:none; gap:10px; margin-top:12px; }
+
     .loader{ display:none; margin-left:8px; width:18px; height:18px; border:2px solid #ddd; border-top-color:var(--brand-blue); border-radius:50%; animation:spin .8s linear infinite; }
     @keyframes spin{ to{ transform:rotate(360deg);} }
+
     footer{ display:flex; align-items:center; justify-content:center; gap:10px; padding:8px; background:#fff; border-top:1px solid var(--line); font-size:12px; }
     footer img{ height:20px; } .footer-text{ font-weight:bold; font-style:italic; }
-    @media (max-width:900px){ header h1{ font-size:22px; } .bar{ flex-wrap:wrap; } .bar label{ width:100%; text-align:left; margin:0 0 6px 0; } .status-block{ align-items:flex-start; } }
+
+    @media (max-width:900px){
+      header h1{ font-size:22px; }
+      .bar{ flex-wrap:wrap; }
+      .bar label{ width:100%; text-align:left; margin:0 0 6px 0; }
+      .status-block{ align-items:flex-start; }
+    }
   </style>
 </head>
 <body>
@@ -145,8 +155,6 @@
     /* ===================== Variables ===================== */
     const WIALON_URL = 'https://hst-api.wialon.com/wialon/ajax.html';
     let gSid = null, gUnits = [], gFiltered = [];
-    const FIXED_COLUMNS = ['nm','imei']; // SOLO UNIDAD (nm) e IMEI
-    const COLUMN_TITLES  = { nm:'UNIDAD', imei:'IMEI' };
 
     /* ===================== UI helpers ===================== */
     function updateDate(){
@@ -167,19 +175,19 @@
     function queueMeasureOffset(){ if (measureQueued) return; measureQueued = true; requestAnimationFrame(()=>{ measureQueued=false; measureOffset(); }); }
     window.addEventListener('resize', queueMeasureOffset);
 
-    /* ===================== IMEI helper ===================== */
+    /* ===================== IMEI helper (1–20 dígitos) ===================== */
     function extractImeiFromText(v){
       if(v==null) return null;
       const s = String(v);
-      const m = s.match(/\b\d{14,16}\b/); // IMEI típico 15 dígitos
+      const m = s.match(/\b\d{1,20}\b/); // acepta 1 a 20 dígitos
       return m ? m[0] : null;
     }
     function deriveImei(u){
-      // 1) uid directo si parece IMEI
+      // 1) uid directo
       let imei = extractImeiFromText(u.uid);
       if(imei) return imei;
 
-      // 2) params (prms)
+      // 2) params (prms) con nombre que contenga "imei"
       if(u.prms){
         for(const k of Object.keys(u.prms)){
           if(/imei/i.test(k)){
@@ -213,7 +221,7 @@
       return '';
     }
 
-    /* ===================== Tabla (solo 2 columnas) ===================== */
+    /* ===================== Tabla (solo UNIDAD e IMEI) ===================== */
     function renderTable(items){
       const thead = document.getElementById('results-head');
       const tbody = document.getElementById('results-body');
@@ -225,23 +233,17 @@
         updateCount(0); return;
       }
 
-      // Encabezados fijos: UNIDAD | IMEI
-      FIXED_COLUMNS.forEach(c=>{
-        const th = document.createElement('th');
-        th.textContent = (COLUMN_TITLES[c] || c.toUpperCase());
-        thead.appendChild(th);
-      });
+      // Encabezados fijos
+      const headers = ['UNIDAD','IMEI'];
+      headers.forEach(h=>{ const th=document.createElement('th'); th.textContent=h; thead.appendChild(th); });
 
       const frag = document.createDocumentFragment();
       items.forEach(u=>{
         const tr = document.createElement('tr');
-        // Asignamos imei calculado para mostrar
-        const imei = deriveImei(u);
         const name = u.nm ?? '';
+        const imei = deriveImei(u);
 
-        // Celda UNIDAD
         const tdNm = document.createElement('td'); tdNm.textContent = String(name); tr.appendChild(tdNm);
-        // Celda IMEI
         const tdI = document.createElement('td'); tdI.textContent = String(imei); tr.appendChild(tdI);
 
         frag.appendChild(tr);
@@ -251,7 +253,7 @@
       $('#export-buttons').css('display','flex');
     }
 
-    /* ===================== Búsqueda (por UNIDAD/IMEI) ===================== */
+    /* ===================== Búsqueda ===================== */
     function applySearch(){
       const q = $('#search').val().toLowerCase().trim();
       if(!q){
@@ -334,10 +336,10 @@
         success: function(res){
           showLoader(false);
           if(res && !res.error && Array.isArray(res.items)){
-            gUnits = res.items.slice();     // mantenemos objeto original
+            gUnits = res.items.slice();
             gFiltered = gUnits.slice();
             setStatus(`Se encontraron ${gUnits.length} unidades.`);
-            renderTable(gFiltered);          // renderiza SOLO UNIDAD/IMEI
+            renderTable(gFiltered);
           } else {
             const err = res && res.error ? res.error : 'Respuesta inválida';
             setStatus('No se pudo obtener datos: ' + err);
