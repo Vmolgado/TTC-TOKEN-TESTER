@@ -25,6 +25,10 @@
       --brand-green: #28a745; --brand-green-hover: #218838;
       --brand-red: #dc3545; --brand-red-hover: #c82333;
       --line: #c6c6c6; --bg: #f9f9f9; --muted: #555;
+      --fresh: #0a7a0a;
+      --stale: #b00020;
+      --stale-bg: #fde8ec;
+      --fresh-bg: #e9f7ea;
     }
     *{ box-sizing: border-box; }
     html,body{ height:100%; }
@@ -41,7 +45,6 @@
     header .brand{ display:flex; align-items:center; gap:14px; }
     header img{ height:50px; }
     header h1{ margin:0; font-size:28px; line-height:1.1; }
-
     .status-block{ display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-width:140px; }
     .date-container{ font-size:14px; color:var(--muted); }
 
@@ -74,8 +77,12 @@
 
     table{ width:100%; border-collapse:collapse; background:#fff; border-radius:6px; overflow:hidden; border:1px solid var(--line); }
     thead th{ position:sticky; top:0; background:#f2f2f2; border-bottom:1px solid var(--line); padding:10px; text-align:left; font-weight:bold; }
-    tbody td{ border-top:1px solid #eee; padding:10px; text-align:left; vertical-align:top; max-width:320px; overflow-wrap:anywhere; }
+    tbody td{ border-top:1px solid #eee; padding:10px; text-align:left; vertical-align:top; max-width:360px; overflow-wrap:anywhere; }
     tbody tr:hover{ background:#fafafa; }
+
+    /* Coloreo de "Último reporte" */
+    .age-fresh{ color:var(--fresh); font-weight:600; background:var(--fresh-bg); }
+    .age-stale{ color:var(--stale); font-weight:600; background:var(--stale-bg); }
 
     .export-row{ display:none; gap:10px; margin-top:12px; }
 
@@ -119,7 +126,7 @@
 
       <div class="bar">
         <label for="search">Buscar:</label>
-        <input type="text" id="search" placeholder="Filtra por UNIDAD o IMEI..." />
+        <input type="text" id="search" placeholder="UNIDAD, IMEI, PLACAS, VIN o fecha..." />
         <button class="btn ghost" id="clear_search">X</button>
       </div>
 
@@ -148,12 +155,14 @@
 
   <footer>
     <img src="footer_logo.png" alt="Footer Logo" onerror="this.style.display='none'">
-    <span class="footer-text">AVL MOLGADO 2024</span>
+    <span class="footer-text">AVL MOLGADO 2025</span>
   </footer>
 
   <script>
     /* ===================== Variables ===================== */
     const WIALON_URL = 'https://hst-api.wialon.com/wialon/ajax.html';
+    const FLAGS = 14693641;  // Incluye pflds (profile fields), etc.
+    const STALE_THRESHOLD_MIN = 60; // minutos para marcar en rojo
     let gSid = null, gUnits = [], gFiltered = [];
 
     /* ===================== UI helpers ===================== */
@@ -175,53 +184,139 @@
     function queueMeasureOffset(){ if (measureQueued) return; measureQueued = true; requestAnimationFrame(()=>{ measureQueued=false; measureOffset(); }); }
     window.addEventListener('resize', queueMeasureOffset);
 
-    /* ===================== IMEI helper (1–20 dígitos) ===================== */
+    /* ===================== Extractores ===================== */
+    // IMEI 1–20 dígitos
     function extractImeiFromText(v){
       if(v==null) return null;
       const s = String(v);
-      const m = s.match(/\b\d{1,20}\b/); // acepta 1 a 20 dígitos
+      const m = s.match(/\b\d{1,20}\b/);
       return m ? m[0] : null;
     }
     function deriveImei(u){
-      // 1) uid directo
       let imei = extractImeiFromText(u.uid);
       if(imei) return imei;
-
-      // 2) params (prms) con nombre que contenga "imei"
       if(u.prms){
         for(const k of Object.keys(u.prms)){
-          if(/imei/i.test(k)){
-            imei = extractImeiFromText(u.prms[k]);
-            if(imei) return imei;
+          if(/imei|id[_\s-]*(uni|term|device)/i.test(k)){
+            imei = extractImeiFromText(u.prms[k]); if(imei) return imei;
           }
         }
       }
-      // 3) campos personalizados (flds)
       if(u.flds){
         const list = Array.isArray(u.flds) ? u.flds : Object.values(u.flds);
         for(const f of list){
           const name = (f?.n || f?.name || '');
           const val  = (f?.v || f?.value || '');
-          if(/imei/i.test(name)){
-            imei = extractImeiFromText(val);
-            if(imei) return imei;
+          if(/imei|id[_\s-]*(uni|term|device)/i.test(name)){
+            imei = extractImeiFromText(val); if(imei) return imei;
           }
         }
       }
-      // 4) sensores (sens)
       if(u.sens){
         const arr = Array.isArray(u.sens) ? u.sens : Object.values(u.sens);
         for(const s of arr){
           if(/imei/i.test(s?.n || s?.name || '') || /imei/i.test(s?.t || s?.type || '')){
-            imei = extractImeiFromText(s?.p || s?.v || s?.value || '');
-            if(imei) return imei;
+            imei = extractImeiFromText(s?.p || s?.v || s?.value || ''); if(imei) return imei;
           }
         }
       }
       return '';
     }
 
-    /* ===================== Tabla (solo UNIDAD e IMEI) ===================== */
+    // PLACAS (PENDIENTE si no hay)
+    function cleanPlate(v){ return v==null ? '' : String(v).trim(); }
+    function derivePlates(u){
+      if(u.pflds && u.pflds.registration_plate){
+        const raw = u.pflds.registration_plate.v ?? u.pflds.registration_plate;
+        const val = cleanPlate(raw);
+        if(val) return val;
+      }
+      if(u.prms){
+        for(const k of Object.keys(u.prms)){
+          if(/(placa|placas|plate|matr[ií]cula|reg[_\s-]*number)/i.test(k)){
+            const v = cleanPlate(u.prms[k]); if(v) return v;
+          }
+        }
+      }
+      if(u.flds){
+        const list = Array.isArray(u.flds) ? u.flds : Object.values(u.flds);
+        for(const f of list){
+          const name = (f?.n || f?.name || '');
+          const val  = (f?.v || f?.value || '');
+          if(/(placa|placas|plate|matr[ií]cula|reg[_\s-]*number)/i.test(name)){
+            const v = cleanPlate(val); if(v) return v;
+          }
+        }
+      }
+      if(u.reg_number){
+        const v = cleanPlate(u.reg_number);
+        if(v) return v;
+      }
+      return 'PENDIENTE';
+    }
+
+    // VIN (PENDIENTE si no hay)
+    function extractVinFromText(v){
+      if(v==null) return null;
+      const s = String(v).toUpperCase();
+      let m = s.match(/\b[A-HJ-NPR-Z0-9]{17}\b/);
+      if(m) return m[0];
+      m = s.match(/\b[A-HJ-NPR-Z0-9]{11,20}\b/);
+      return m ? m[0] : null;
+    }
+    function deriveVin(u){
+      if(u.pflds && u.pflds.vin){
+        const raw = u.pflds.vin.v ?? u.pflds.vin;
+        const vin = extractVinFromText(raw);
+        if(vin) return vin || String(raw || '');
+      }
+      if(u.prms){
+        for(const k of Object.keys(u.prms)){
+          if(/vin|veh[_\s-]*id/i.test(k)){
+            const vin = extractVinFromText(u.prms[k]); if(vin) return vin;
+          }
+        }
+      }
+      if(u.flds){
+        const list = Array.isArray(u.flds) ? u.flds : Object.values(u.flds);
+        for(const f of list){
+          const name = (f?.n || f?.name || '');
+          const val  = (f?.v || f?.value || '');
+          if(/vin|veh[_\s-]*id/i.test(name)){
+            const vin = extractVinFromText(val); if(vin) return vin;
+          }
+        }
+      }
+      return 'PENDIENTE';
+    }
+
+    // Último reporte
+    function firstValidEpoch(...cands){
+      for(const v of cands){
+        if(typeof v === 'number' && v > 100000000 && v < 4102444800) return v;
+        if(typeof v === 'string' && /^\d+$/.test(v)){
+          const n = Number(v);
+          if(n > 100000000 && n < 4102444800) return n;
+        }
+      }
+      return null;
+    }
+    function getLastReportEpoch(u){
+      const posT = u?.pos?.t ?? u?.pos?.tm ?? u?.pos?.time;
+      const alt1 = u.lmsg ?? u.last_msg ?? u.last_time ?? u.mt ?? u.msg_time ?? u.t;
+      return firstValidEpoch(posT, alt1);
+    }
+    function formatEpoch(ts){
+      if(!ts) return '';
+      try{ return new Date(ts*1000).toLocaleString('es-MX'); }catch(e){ return ''; }
+    }
+    function ageMinutes(ts){
+      if(!ts) return null;
+      const nowSec = Math.floor(Date.now()/1000);
+      return Math.max(0, Math.floor((nowSec - ts)/60));
+    }
+
+    /* ===================== Tabla ===================== */
     function renderTable(items){
       const thead = document.getElementById('results-head');
       const tbody = document.getElementById('results-body');
@@ -233,18 +328,39 @@
         updateCount(0); return;
       }
 
-      // Encabezados fijos
-      const headers = ['UNIDAD','IMEI'];
+      const headers = ['UNIDAD','IMEI','PLACAS','VIN','ÚLTIMO REPORTE'];
       headers.forEach(h=>{ const th=document.createElement('th'); th.textContent=h; thead.appendChild(th); });
 
       const frag = document.createDocumentFragment();
       items.forEach(u=>{
         const tr = document.createElement('tr');
-        const name = u.nm ?? '';
-        const imei = deriveImei(u);
+        const name   = u.nm ?? '';
+        const imei   = deriveImei(u);
+        const plates = derivePlates(u);
+        const vin    = deriveVin(u);
+        const lastTs = getLastReportEpoch(u);
+        const lastStr= formatEpoch(lastTs) || '-';
+        const ageMin = ageMinutes(lastTs);
 
-        const tdNm = document.createElement('td'); tdNm.textContent = String(name); tr.appendChild(tdNm);
-        const tdI = document.createElement('td'); tdI.textContent = String(imei); tr.appendChild(tdI);
+        tr.appendChild(cell(name));
+        tr.appendChild(cell(imei));
+        tr.appendChild(cell(plates));
+        tr.appendChild(cell(vin));
+
+        const tdLast = cell(lastStr);
+        // aplica color: >60 = rojo, <=60 = verde; si no hay fecha, rojo
+        if(lastTs){
+          if(ageMin > STALE_THRESHOLD_MIN){
+            tdLast.classList.add('age-stale');
+          }else{
+            tdLast.classList.add('age-fresh');
+          }
+          tdLast.title = `${ageMin} minuto(s) de antigüedad`;
+        }else{
+          tdLast.classList.add('age-stale');
+          tdLast.title = 'Sin datos de último reporte';
+        }
+        tr.appendChild(tdLast);
 
         frag.appendChild(tr);
       });
@@ -252,6 +368,7 @@
       updateCount(items.length);
       $('#export-buttons').css('display','flex');
     }
+    function cell(text){ const td=document.createElement('td'); td.textContent=String(text ?? ''); return td; }
 
     /* ===================== Búsqueda ===================== */
     function applySearch(){
@@ -260,9 +377,12 @@
         gFiltered = gUnits.slice();
       }else{
         gFiltered = gUnits.filter(u=>{
-          const imei = deriveImei(u).toLowerCase();
-          const name = String(u.nm ?? '').toLowerCase();
-          return name.includes(q) || imei.includes(q);
+          const name   = String(u.nm ?? '').toLowerCase();
+          const imei   = (deriveImei(u) || '').toLowerCase();
+          const plates = (derivePlates(u) || '').toLowerCase();
+          const vin    = (deriveVin(u) || '').toLowerCase();
+          const last   = (formatEpoch(getLastReportEpoch(u)) || '').toLowerCase();
+          return name.includes(q) || imei.includes(q) || plates.includes(q) || vin.includes(q) || last.includes(q);
         });
       }
       renderTable(gFiltered);
@@ -273,8 +393,14 @@
     function exportToExcel(){
       const rows = gFiltered.length ? gFiltered : gUnits;
       if(!rows.length){ alert('No hay datos para exportar.'); return; }
-      const data=[ ['UNIDAD','IMEI'] ];
-      rows.forEach(u=> data.push([ String(u.nm ?? ''), String(deriveImei(u)) ]));
+      const data=[ ['UNIDAD','IMEI','PLACAS','VIN','ÚLTIMO REPORTE'] ];
+      rows.forEach(u=> data.push([
+        String(u.nm ?? ''),
+        String(deriveImei(u)),
+        String(derivePlates(u)),
+        String(deriveVin(u)),
+        String(formatEpoch(getLastReportEpoch(u)) || '-')
+      ]));
       const ws=XLSX.utils.aoa_to_sheet(data);
       const wb=XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Unidades");
@@ -286,8 +412,14 @@
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'A4' });
       doc.setFontSize(12); doc.text("TTC TOKEN TESTER - Unidades", 40, 34);
-      const head=[ ['UNIDAD','IMEI'] ];
-      const body=rows.map(u=> [ String(u.nm ?? ''), String(deriveImei(u)) ]);
+      const head=[ ['UNIDAD','IMEI','PLACAS','VIN','ÚLTIMO REPORTE'] ];
+      const body=rows.map(u=> [
+        String(u.nm ?? ''),
+        String(deriveImei(u)),
+        String(derivePlates(u)),
+        String(deriveVin(u)),
+        String(formatEpoch(getLastReportEpoch(u)) || '-')
+      ]);
       doc.autoTable({ startY:50, head, body, styles:{ fontSize:10, cellPadding:4 }, headStyles:{ fillColor:[242,242,242], textColor:20 } });
       doc.save("unidades.pdf");
     }
@@ -311,16 +443,8 @@
       });
     }
 
-    // Flags extendidas para traer flds/prms/sens además del uid
-    const EXT_FLAGS =
-        0x0001 | 0x0002 | 0x0004 | 0x0008 |
-        0x0010 | 0x0020 | 0x0040 | 0x0080 |
-        0x0100 | 0x0200 | 0x0400 | 0x0800 |
-        0x1000 | 0x2000 | 0x4000 | 0x8000; // 65535
-
     function fetchUnits(){
       if(!gSid){ setStatus('No hay sesión activa.'); return; }
-      const flags = EXT_FLAGS;
 
       $.ajax({
         url: WIALON_URL, dataType:'jsonp',
@@ -328,7 +452,9 @@
           svc:'core/search_items',
           params: JSON.stringify({
             spec:{ itemsType:'avl_unit', propName:'sys_name', propValueMask:'*', sortType:'sys_name' },
-            force:1, flags, from:0, to:0
+            force:1,
+            flags: FLAGS,
+            from:0, to:0
           }),
           sid: gSid
         },
@@ -336,7 +462,20 @@
         success: function(res){
           showLoader(false);
           if(res && !res.error && Array.isArray(res.items)){
-            gUnits = res.items.slice();
+            // Normalizar pflds a objeto por nombre si viene indexado por id
+            gUnits = res.items.map(u=>{
+              let pf = u.pflds;
+              if (pf && !pf.registration_plate && !pf.vin){
+                const byName = {};
+                try{
+                  Object.values(pf).forEach(x=>{
+                    if(x && x.n){ byName[x.n] = x; }
+                  });
+                  pf = Object.keys(byName).length ? byName : pf;
+                }catch(e){}
+              }
+              return { ...u, pflds: pf };
+            });
             gFiltered = gUnits.slice();
             setStatus(`Se encontraron ${gUnits.length} unidades.`);
             renderTable(gFiltered);
