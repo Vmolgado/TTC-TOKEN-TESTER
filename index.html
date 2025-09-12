@@ -86,6 +86,13 @@
 
     .export-row{ display:none; gap:10px; margin-top:12px; }
 
+    /* NUEVO: leyenda de accesos */
+    .legend{
+      margin-top:12px; padding:10px; font-size:13px; color:#333;
+      border:1px solid var(--line); border-radius:6px; background:#f9f9f9;
+    }
+    .legend span{ font-weight:bold; }
+
     .loader{ display:none; margin-left:8px; width:18px; height:18px; border:2px solid #ddd; border-top-color:var(--brand-blue); border-radius:50%; animation:spin .8s linear infinite; }
     @keyframes spin{ to{ transform:rotate(360deg);} }
 
@@ -150,6 +157,15 @@
         <button class="btn green" id="export_excel_btn">Exportar a Excel</button>
         <button class="btn red" id="export_pdf_btn">Exportar a PDF</button>
       </div>
+
+      <!-- NUEVO: leyenda fija de accesos -->
+      <div class="legend">
+        <p><strong>Leyenda de accesos:</strong></p>
+        <p><span>R</span> = Lectura (ver unidad) &nbsp; | &nbsp;
+           <span>E</span> = Edición (configurar unidad) &nbsp; | &nbsp;
+           <span>MSG</span> = Mensajes (ver historial/datos) &nbsp; | &nbsp;
+           <span>CMD</span> = Comandos (ejecutar acciones)</p>
+      </div>
     </div>
   </main>
 
@@ -161,7 +177,7 @@
   <script>
     /* ===================== Variables ===================== */
     const WIALON_URL = 'https://hst-api.wialon.com/wialon/ajax.html';
-    const FLAGS = 14693641;  // Incluye pflds (profile fields), etc.
+    const FLAGS = 14693641;  // Incluye profile fields (pflds), etc.
     const STALE_THRESHOLD_MIN = 60; // minutos para marcar en rojo
     let gSid = null, gUnits = [], gFiltered = [];
 
@@ -316,6 +332,24 @@
       return Math.max(0, Math.floor((nowSec - ts)/60));
     }
 
+    /* ========= ACL / Tipo de acceso ========= */
+    function decodeAccessLabel(uacl) {
+      if (typeof uacl !== 'number') return '—';
+      // Bits prácticos (ajústalos si tu instalación usa otros):
+      const CAN_VIEW     = 0x00000001; // ver
+      const CAN_EDIT     = 0x00000002; // editar
+      const CAN_MESSAGES = 0x00000004; // ver mensajes
+      const CAN_COMMANDS = 0x00000020; // ejecutar comandos
+
+      const parts = [];
+      if (uacl & CAN_VIEW)     parts.push('R');
+      if (uacl & CAN_EDIT)     parts.push('E');
+      if (uacl & CAN_MESSAGES) parts.push('MSG');
+      if (uacl & CAN_COMMANDS) parts.push('CMD');
+
+      return parts.length ? parts.join(' · ') : 'Sin acceso';
+    }
+
     /* ===================== Tabla ===================== */
     function renderTable(items){
       const thead = document.getElementById('results-head');
@@ -328,8 +362,16 @@
         updateCount(0); return;
       }
 
-      const headers = ['UNIDAD','IMEI','PLACAS','VIN','ÚLTIMO REPORTE'];
-      headers.forEach(h=>{ const th=document.createElement('th'); th.textContent=h; thead.appendChild(th); });
+      const headers = ['UNIDAD','IMEI','PLACAS','VIN','ÚLTIMO REPORTE','ACCESO'];
+      headers.forEach(h=>{
+        const th=document.createElement('th');
+        th.textContent=h;
+        // NUEVO: tooltip en el encabezado ACCESO
+        if(h==='ACCESO'){
+          th.title='R = Lectura | E = Edición | MSG = Mensajes | CMD = Comandos';
+        }
+        thead.appendChild(th);
+      });
 
       const frag = document.createDocumentFragment();
       items.forEach(u=>{
@@ -341,6 +383,7 @@
         const lastTs = getLastReportEpoch(u);
         const lastStr= formatEpoch(lastTs) || '-';
         const ageMin = ageMinutes(lastTs);
+        const access = decodeAccessLabel(u.uacl);
 
         tr.appendChild(cell(name));
         tr.appendChild(cell(imei));
@@ -348,7 +391,6 @@
         tr.appendChild(cell(vin));
 
         const tdLast = cell(lastStr);
-        // aplica color: >60 = rojo, <=60 = verde; si no hay fecha, rojo
         if(lastTs){
           if(ageMin > STALE_THRESHOLD_MIN){
             tdLast.classList.add('age-stale');
@@ -361,6 +403,10 @@
           tdLast.title = 'Sin datos de último reporte';
         }
         tr.appendChild(tdLast);
+
+        const tdAcc = cell(access);
+        tdAcc.title = `uacl: ${(u.uacl>>>0).toString(16)}h`;
+        tr.appendChild(tdAcc);
 
         frag.appendChild(tr);
       });
@@ -382,7 +428,8 @@
           const plates = (derivePlates(u) || '').toLowerCase();
           const vin    = (deriveVin(u) || '').toLowerCase();
           const last   = (formatEpoch(getLastReportEpoch(u)) || '').toLowerCase();
-          return name.includes(q) || imei.includes(q) || plates.includes(q) || vin.includes(q) || last.includes(q);
+          const access = decodeAccessLabel(u.uacl).toLowerCase();
+          return name.includes(q) || imei.includes(q) || plates.includes(q) || vin.includes(q) || last.includes(q) || access.includes(q);
         });
       }
       renderTable(gFiltered);
@@ -393,13 +440,14 @@
     function exportToExcel(){
       const rows = gFiltered.length ? gFiltered : gUnits;
       if(!rows.length){ alert('No hay datos para exportar.'); return; }
-      const data=[ ['UNIDAD','IMEI','PLACAS','VIN','ÚLTIMO REPORTE'] ];
+      const data=[ ['UNIDAD','IMEI','PLACAS','VIN','ÚLTIMO REPORTE','ACCESO'] ];
       rows.forEach(u=> data.push([
         String(u.nm ?? ''),
         String(deriveImei(u)),
         String(derivePlates(u)),
         String(deriveVin(u)),
-        String(formatEpoch(getLastReportEpoch(u)) || '-')
+        String(formatEpoch(getLastReportEpoch(u)) || '-'),
+        String(decodeAccessLabel(u.uacl))
       ]));
       const ws=XLSX.utils.aoa_to_sheet(data);
       const wb=XLSX.utils.book_new();
@@ -411,14 +459,15 @@
       if(!rows.length){ alert('No hay datos para exportar.'); return; }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation:'landscape', unit:'pt', format:'A4' });
-      doc.setFontSize(12); doc.text("TTC TOKEN TESTER - Unidades", 40, 34);
-      const head=[ ['UNIDAD','IMEI','PLACAS','VIN','ÚLTIMO REPORTE'] ];
+      doc.setFontSize(12); doc.text("TOKEN TESTER - Unidades", 40, 34);
+      const head=[ ['UNIDAD','IMEI','PLACAS','VIN','ÚLTIMO REPORTE','ACCESO'] ];
       const body=rows.map(u=> [
         String(u.nm ?? ''),
         String(deriveImei(u)),
         String(derivePlates(u)),
         String(deriveVin(u)),
-        String(formatEpoch(getLastReportEpoch(u)) || '-')
+        String(formatEpoch(getLastReportEpoch(u)) || '-'),
+        String(decodeAccessLabel(u.uacl))
       ]);
       doc.autoTable({ startY:50, head, body, styles:{ fontSize:10, cellPadding:4 }, headStyles:{ fillColor:[242,242,242], textColor:20 } });
       doc.save("unidades.pdf");
@@ -510,4 +559,3 @@
   </script>
 </body>
 </html>
-
