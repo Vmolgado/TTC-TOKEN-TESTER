@@ -5,18 +5,10 @@
   <title>TOKEN TESTER</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/png" href="favicon.png">
-
-  <!-- jQuery -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-
-  <!-- XLSX (Excel) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-  <!-- jsPDF + autoTable (PDF) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
-  <!-- CSS embebido -->
   <style>
     :root{
       --sticky-offset: 180px;
@@ -47,7 +39,6 @@
     header h1{ margin:0; font-size:28px; line-height:1.1; }
     .status-block{ display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-width:140px; }
     .date-container{ font-size:14px; color:var(--muted); }
-
     .bars{ display:grid; grid-template-columns:1fr; gap:0; border-top:1px solid var(--line); }
     .bar{ display:flex; align-items:center; gap:10px; padding:10px; border-top:1px solid var(--line); background:#fff; }
     .bar label{ width:130px; text-align:right; margin-right:6px; font-weight:bold; }
@@ -55,7 +46,7 @@
       flex:1; min-width:240px; height:38px; padding:8px 10px; font-size:16px;
       border:1px solid var(--line); border-radius:6px; outline:none; background:#fff;
     }
-    .bar input[type="text"]:focus, .bar input[type="password"]:focus{ border-color:var(--brand-blue); }
+    .bar input[type="text"]:focus, .bar input[type="password"]{ border-color:var(--brand-blue); }
     .btn{
       display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 12px;
       border:none; border-radius:6px; color:#fff; cursor:pointer; transition:background-color .15s;
@@ -70,35 +61,25 @@
     .badge.ok{ background:#e6ffe6; color:#106410; border:1px solid #bde3bd; }
     .badge.err{ background:#ffe6e9; color:#7d1c25; border:1px solid #f2b7bf; }
     .status-msgs{ color:#333; font-size:13px; line-height:1.35; max-height:56px; overflow:auto; }
-
     .content{ padding:16px; flex:1; width:100%; max-width:1400px; margin:0 auto; }
     #results-container{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:12px; }
     #log{ border:1px solid var(--line); padding:10px; background:#f9f9f9; font-size:14px; margin-top:20px; flex:1; }
-
     table{ width:100%; border-collapse:collapse; background:#fff; border-radius:6px; overflow:hidden; border:1px solid var(--line); }
     thead th{ position:sticky; top:0; background:#f2f2f2; border-bottom:1px solid var(--line); padding:10px; text-align:left; font-weight:bold; }
     tbody td{ border-top:1px solid #eee; padding:10px; text-align:left; vertical-align:top; max-width:360px; overflow-wrap:anywhere; }
     tbody tr:hover{ background:#fafafa; }
-
-    /* Coloreo de "Último reporte" */
     .age-fresh{ color:var(--fresh); font-weight:600; background:var(--fresh-bg); }
     .age-stale{ color:var(--stale); font-weight:600; background:var(--stale-bg); }
-
     .export-row{ display:none; gap:10px; margin-top:12px; }
-
-    /* NUEVO: leyenda de accesos */
     .legend{
       margin-top:12px; padding:10px; font-size:13px; color:#333;
       border:1px solid var(--line); border-radius:6px; background:#f9f9f9;
     }
     .legend span{ font-weight:bold; }
-
     .loader{ display:none; margin-left:8px; width:18px; height:18px; border:2px solid #ddd; border-top-color:var(--brand-blue); border-radius:50%; animation:spin .8s linear infinite; }
     @keyframes spin{ to{ transform:rotate(360deg);} }
-
     footer{ display:flex; align-items:center; justify-content:center; gap:10px; padding:8px; background:#fff; border-top:1px solid var(--line); font-size:12px; }
     footer img{ height:20px; } .footer-text{ font-weight:bold; font-style:italic; }
-
     @media (max-width:900px){
       header h1{ font-size:22px; }
       .bar{ flex-wrap:wrap; }
@@ -108,7 +89,6 @@
   </style>
 </head>
 <body>
-
   <div class="fixed-container" id="fixedHeader">
     <header>
       <div class="brand">
@@ -158,7 +138,6 @@
         <button class="btn red" id="export_pdf_btn">Exportar a PDF</button>
       </div>
 
-      <!-- NUEVO: leyenda fija de accesos -->
       <div class="legend">
         <p><strong>Leyenda de accesos:</strong></p>
         <p><span>R</span> = Lectura (ver unidad) &nbsp; | &nbsp;
@@ -175,13 +154,11 @@
   </footer>
 
   <script>
-    /* ===================== Variables ===================== */
     const WIALON_URL = 'https://hst-api.wialon.com/wialon/ajax.html';
-    const FLAGS = 14693641;  // Incluye profile fields (pflds), etc.
-    const STALE_THRESHOLD_MIN = 60; // minutos para marcar en rojo
+    const FLAGS = 14693641;
+    const STALE_THRESHOLD_MIN = 60;
     let gSid = null, gUnits = [], gFiltered = [];
 
-    /* ===================== UI helpers ===================== */
     function updateDate(){
       const now = new Date();
       const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
@@ -194,14 +171,11 @@
     function updateCount(n){ document.getElementById('found-count').textContent = `${n} ${n===1?'unidad':'unidades'}`; }
     function clearAll(){ $('#token').val(''); $('#search').val(''); gSid=null; gUnits=[]; gFiltered=[]; renderTable([]); $('#export-buttons').hide(); setBadge(false); resetStatus('Listo.'); updateCount(0); queueMeasureOffset(); }
 
-    /* ======= Espaciado dinámico ======= */
     let measureQueued = false;
     function measureOffset(){ const fixed = document.getElementById('fixedHeader'); const h = fixed ? fixed.getBoundingClientRect().height : 0; document.documentElement.style.setProperty('--sticky-offset', `${Math.ceil(h)+8}px`); }
     function queueMeasureOffset(){ if (measureQueued) return; measureQueued = true; requestAnimationFrame(()=>{ measureQueued=false; measureOffset(); }); }
     window.addEventListener('resize', queueMeasureOffset);
 
-    /* ===================== Extractores ===================== */
-    // IMEI 1–20 dígitos
     function extractImeiFromText(v){
       if(v==null) return null;
       const s = String(v);
@@ -239,7 +213,6 @@
       return '';
     }
 
-    // PLACAS (PENDIENTE si no hay)
     function cleanPlate(v){ return v==null ? '' : String(v).trim(); }
     function derivePlates(u){
       if(u.pflds && u.pflds.registration_plate){
@@ -271,7 +244,6 @@
       return 'PENDIENTE';
     }
 
-    // VIN (PENDIENTE si no hay)
     function extractVinFromText(v){
       if(v==null) return null;
       const s = String(v).toUpperCase();
@@ -306,7 +278,6 @@
       return 'PENDIENTE';
     }
 
-    // Último reporte
     function firstValidEpoch(...cands){
       for(const v of cands){
         if(typeof v === 'number' && v > 100000000 && v < 4102444800) return v;
@@ -332,25 +303,20 @@
       return Math.max(0, Math.floor((nowSec - ts)/60));
     }
 
-    /* ========= ACL / Tipo de acceso ========= */
     function decodeAccessLabel(uacl) {
       if (typeof uacl !== 'number') return '—';
-      // Bits prácticos (ajústalos si tu instalación usa otros):
-      const CAN_VIEW     = 0x00000001; // ver
-      const CAN_EDIT     = 0x00000002; // editar
-      const CAN_MESSAGES = 0x00000004; // ver mensajes
-      const CAN_COMMANDS = 0x00000020; // ejecutar comandos
-
+      const CAN_VIEW     = 0x00000001;
+      const CAN_EDIT     = 0x00000002;
+      const CAN_MESSAGES = 0x00000004;
+      const CAN_COMMANDS = 0x00000020;
       const parts = [];
       if (uacl & CAN_VIEW)     parts.push('R');
       if (uacl & CAN_EDIT)     parts.push('E');
       if (uacl & CAN_MESSAGES) parts.push('MSG');
       if (uacl & CAN_COMMANDS) parts.push('CMD');
-
       return parts.length ? parts.join(' · ') : 'Sin acceso';
     }
 
-    /* ===================== Tabla ===================== */
     function renderTable(items){
       const thead = document.getElementById('results-head');
       const tbody = document.getElementById('results-body');
@@ -366,7 +332,6 @@
       headers.forEach(h=>{
         const th=document.createElement('th');
         th.textContent=h;
-        // NUEVO: tooltip en el encabezado ACCESO
         if(h==='ACCESO'){
           th.title='R = Lectura | E = Edición | MSG = Mensajes | CMD = Comandos';
         }
@@ -416,7 +381,6 @@
     }
     function cell(text){ const td=document.createElement('td'); td.textContent=String(text ?? ''); return td; }
 
-    /* ===================== Búsqueda ===================== */
     function applySearch(){
       const q = $('#search').val().toLowerCase().trim();
       if(!q){
@@ -436,7 +400,6 @@
       queueMeasureOffset();
     }
 
-    /* ===================== Exportaciones ===================== */
     function exportToExcel(){
       const rows = gFiltered.length ? gFiltered : gUnits;
       if(!rows.length){ alert('No hay datos para exportar.'); return; }
@@ -473,7 +436,6 @@
       doc.save("unidades.pdf");
     }
 
-    /* ===================== Wialon ===================== */
     function loginAndGetUnits(){
       const token = $('#token').val().trim();
       if(!token){ resetStatus('Debes ingresar un token.'); setBadge(false); return; }
@@ -511,7 +473,6 @@
         success: function(res){
           showLoader(false);
           if(res && !res.error && Array.isArray(res.items)){
-            // Normalizar pflds a objeto por nombre si viene indexado por id
             gUnits = res.items.map(u=>{
               let pf = u.pflds;
               if (pf && !pf.registration_plate && !pf.vin){
@@ -544,7 +505,6 @@
       });
     }
 
-    /* ===================== Eventos ===================== */
     $(function(){
       updateDate(); renderTable([]); queueMeasureOffset();
       $('#login_btn').on('click', loginAndGetUnits);
